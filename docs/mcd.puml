@@ -1,0 +1,95 @@
+@startuml MCD
+title MCD - Prix Goncourt 2025
+
+entity "AUTHOR" as AUTHOR {
+  * id_author : int
+  --
+  first_name : string
+  last_name : string
+  biography : text?
+}
+
+entity "PUBLISHER" as PUBLISHER {
+  * id_publisher : int
+  --
+  name : string
+}
+
+entity "BOOK" as BOOK {
+  * id_book : int
+  --
+  title : string
+  summary : text
+  publication_date : date
+  page_count : int
+  isbn : string
+  price : float
+  --
+  author_id : int
+  publisher_id : int
+}
+
+entity "CHARACTER" as CHARACTER {
+  * id_character : int
+  --
+  name : string
+  book_id : int
+}
+
+entity "SELECTION" as SELECTION {
+  * id_selection : int
+  --
+  year : int
+  round_number : int
+  selection_date : date
+}
+
+entity "SELECTION_BOOK" as SELECTION_BOOK {
+  * id_selection : int
+  * id_book : int
+}
+
+entity "FINAL_RESULT" as FINAL_RESULT {
+  * id_book : int
+  --
+  nb_votes : int
+}
+
+entity "JURY_MEMBER" as JURY_MEMBER {
+  * id_member : int
+  --
+  first_name : string
+  last_name : string
+  is_president : bool
+  login : string?
+  password_hash : string
+}
+
+'/////////////////////////////////// ASSOCIATIONS ///////////////////////////////////
+
+'One author can write many books,
+'but each book is written by one author.
+AUTHOR ||--o{ BOOK : "writes"
+
+'One publisher can publish many books,
+'but each book has only one publisher.
+PUBLISHER ||--o{ BOOK : "publishes"
+
+'One book can contain many characters,
+'each character belongs to one book.
+BOOK ||--o{ CHARACTER : "has characters"
+
+'A selection includes many books,
+'& association table stores selected ones.
+SELECTION ||--o{ SELECTION_BOOK : "includes"
+
+'A book can appear in many selections,
+'& join table links each book to its selection rounds.
+BOOK ||--o{ SELECTION_BOOK : "appears in"
+
+'A book may have one final result (Goncourt winner/votes),
+'& final vote entry belongs to one book.
+BOOK ||--o| FINAL_RESULT : "final vote"
+
+
+@enduml

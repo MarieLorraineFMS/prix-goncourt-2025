@@ -20,7 +20,7 @@ class BaseDao[T](ABC):
     connection: ClassVar[pymysql.Connection] = pymysql.connect(
         host="localhost",
         user="goncourt_user",
-        password="goncourt_user_password",
+        password="GNC_PWD",
         database="goncourt_2025",
         cursorclass=pymysql.cursors.DictCursor,
     )

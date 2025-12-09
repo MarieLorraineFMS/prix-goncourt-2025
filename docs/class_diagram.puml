@@ -1,0 +1,75 @@
+@startuml Class Diagram
+title Prix Goncourt 2025
+
+' ////////////////////////// ENTITIES ////////////////////////
+
+class Author {
+  +id : int
+  +firstName : string
+  +lastName : string
+  +biography : string
+  --
+  +getFullName() : string
+}
+
+class Publisher {
+  +id : int
+  +name : string
+}
+
+class Book {
+  +id : int
+  +title : string
+  +summary : string
+  +publicationDate : date
+  +pageCount : int
+  +isbn : string
+  +price : decimal
+  --
+  +getDisplayTitle() : string
+}
+
+class JuryMember {
+  +id : int
+  +firstName : string
+  +lastName : string
+  +isPresident : boolean
+  +login : string
+  +passwordHash : string
+}
+
+class Selection {
+  +id : int
+  +year : int
+  +roundNumber : int
+  +selectionDate : date
+}
+
+class FinalResult {
+  +id : int
+  +nbVotes : int
+}
+
+class BookCharacter {
+  +id : int
+  +name : string
+}
+
+' ////////////////// ASSOCIATIONS /////////////////////////
+
+'An author writes 1 to many book
+Author "1" o-- "0..*" Book : writes
+
+'A Publisher publish 1 to many book
+Publisher "1" o-- "0..*" Book : publish
+
+'A Book contains 1 to many character
+Book "1" o-- "0..*" BookCharacter : contains
+
+'A book can be in 1 to many selection & a Selection contains many books
+Selection "0..*" o-- "0..*" Book : selected
+
+'A book can be in final_result : 0 to 1
+Book "0..1" o-- "0..1" FinalResult : final_result
+
+@enduml

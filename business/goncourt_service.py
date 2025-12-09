@@ -37,3 +37,14 @@ class GoncourtService:
     def record_final_votes(self, results: dict[int, int]) -> None:
         """Record final votes."""
         ...
+    def get_book_details(self, book_id:int) -> Book:
+        """Record final votes."""
+        ...
+    def set_second_selection(self, book_ids: list[int]) -> None:
+        """set second selection."""
+        ...
+
+    def set_third_selection(self, book_ids: list[int]) -> None:
+        """set third selection."""
+        ...
+

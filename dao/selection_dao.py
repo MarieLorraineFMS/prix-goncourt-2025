@@ -32,3 +32,6 @@ class SelectionDao(BaseDao[Selection]):
 
     def read_by_year_and_round(self, year: int, round_number: int) -> Optional[Selection]:
         ...
+
+    def set_books(self, selection_id:int, book_ids: list[int]) -> Optional[Selection]:
+        ...

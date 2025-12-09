@@ -1,0 +1,21 @@
+@startuml Books by selection
+title Séquence : consulter les livres d'une sélection
+
+actor User
+boundary UI as "UI"
+control Goncourt_service
+database DB as "MySQL"
+
+User -> UI : choisir une sélection (round = 2)
+UI -> Goncourt_service : getBooksBySelection(round=2, year=2025)
+
+Goncourt_service -> DB : SELECT id_selection\nFROM selection\nWHERE year=2025 AND round_number=2
+DB --> Goncourt_service : id_selection = 2
+
+Goncourt_service -> DB : SELECT b.*\nFROM selection_book sb\nJOIN book b ON b.id_book = sb.id_book\nWHERE sb.id_selection = 2
+DB --> Goncourt_service : liste de livres
+
+Goncourt_service --> UI : liste de livres (2ᵉ sélection)
+UI --> User : affiche les 8 romans de la 2ᵉ sélection
+
+@enduml

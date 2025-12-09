@@ -1,0 +1,27 @@
+@startuml Book details
+title Séquence : consulter les détails d'un livre
+
+actor User
+boundary UI as "UI"
+control Goncourt_service
+database DB as "MySQL"
+
+User -> UI : clic sur "La maison vide"
+UI -> Goncourt_service : getBookDetails(bookId = 11)
+
+'Récupérer le livre & auteur & éditeur
+Goncourt_service -> DB : SELECT b.*, a.*, p.*\nFROM book b\nJOIN author a ON a.id_author = b.author_id\nJOIN publisher p ON p.id_publisher = b.publisher_id\nWHERE b.id_book = 11
+DB --> Goncourt_service : Book + Author + Publisher
+
+'Récupérer les personnages
+Goncourt_service -> DB : SELECT * FROM book_character\nWHERE book_id = 11
+DB --> Goncourt_service : liste de BookCharacter
+
+'Récupérer le résultat final éventuel
+Goncourt_service -> DB : SELECT * FROM final_result\nWHERE id_book = 11
+DB --> Goncourt_service : FinalResult (0 ou 1 ligne)
+
+Goncourt_service --> UI : Book + Author + Publisher + Characters + FinalResult
+UI --> User : affiche la fiche détaillée du livre
+
+@enduml
