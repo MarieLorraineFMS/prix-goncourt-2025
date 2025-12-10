@@ -17,3 +17,6 @@ class Selection:
     year: int = 2025
     round_number: int = 1  # 1, 2 or 3
     selection_date: Optional[date] = None
+
+    def __str__(self) -> str:
+        return f"{self.year} - le {self.selection_date} - Sélection : {self.round_number}"

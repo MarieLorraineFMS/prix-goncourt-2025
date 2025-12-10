@@ -24,3 +24,6 @@ class Book:
     # FK
     author_id: int | None = None
     publisher_id: int | None = None
+
+    def __str__(self) -> str:
+        return f"{self.title} {self.summary}"

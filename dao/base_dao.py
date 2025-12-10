@@ -17,13 +17,12 @@ import pymysql.cursors
 @dataclass
 class BaseDao[T](ABC):
 
-    connection: ClassVar[pymysql.Connection] = pymysql.connect(
-        host="localhost",
-        user="goncourt_user",
-        password="GNC_PWD",
-        database="goncourt_2025",
-        cursorclass=pymysql.cursors.DictCursor,
-    )
+    connection: ClassVar[pymysql.Connection] = \
+        pymysql.connect(host='localhost',
+                        user='goncourt_user',
+                        password='GNC_PWD',
+                        database='goncourt_2025',
+                        cursorclass=pymysql.cursors.DictCursor)
 
     @abstractmethod
     def create(self, obj: T) -> int:
