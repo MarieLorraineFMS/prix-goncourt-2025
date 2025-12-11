@@ -6,11 +6,12 @@ Author DAO implementation.
 
 from dataclasses import dataclass
 from typing import Optional, TypedDict, cast
-import logging
 
 from dao.base_dao import BaseDao
+
 from model.author import Author
 
+import logging
 logger = logging.getLogger(__name__)
 
 

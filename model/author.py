@@ -17,5 +17,6 @@ class Author:
     last_name: str = ""
     biography: Optional[str] = None
 
+    # TODO : improve __str__
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}"

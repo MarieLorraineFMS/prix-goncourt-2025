@@ -5,12 +5,13 @@ Character DAO implementation.
 """
 
 from dataclasses import dataclass
-import logging
 from typing import Optional, TypedDict, cast
 
 from dao.base_dao import BaseDao
+
 from model.character import Character
 
+import logging
 logger = logging.getLogger(__name__)
 
 class CharacterRecord(TypedDict):

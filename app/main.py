@@ -4,23 +4,24 @@
 App - Prix Goncourt 2025.
 """
 
-
 import textwrap
 from typing import Dict
 
 from business.goncourt_service import BookDetails, GoncourtService
+
 from dao.book_dao import BookDao
 from dao.author_dao import AuthorDao
+from dao.jury_member_dao import JuryMemberDao
 from dao.publisher_dao import PublisherDao
 from dao.character_dao import CharacterDao
 from dao.selection_dao import SelectionDao
 from dao.final_result_dao import FinalResultDao
+
+from model.jury_member import JuryMember
+
 from logging_config import setup_logging
 
-
-
 # /////////////////////////////// COLORS ///////////////////////////////
-
 
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -34,9 +35,12 @@ FG_MAGENTA = "\033[35m"
 
 
 def color(text: str, fg: str) -> str:
-    """Retourne une chaîne colorée."""
+    """Return colored text"""
     return f"{fg}{text}{RESET}"
 
+# /////////////////////////////// GLOBAL ///////////////////////////////
+
+current_user: JuryMember | None = None
 
 # /////////////////////////////// UI ///////////////////////////////
 
@@ -45,7 +49,7 @@ def print_header() -> None:
     print(color("\n/////////////////////////////////", FG_CYAN))
     print(color("  PRIX GONCOURT 2025", FG_CYAN))
     print(color("/////////////////////////////////\n", FG_CYAN))
-
+    print()
 
 def print_menu() -> None:
     """Menu."""
@@ -53,12 +57,11 @@ def print_menu() -> None:
     print("  1) Lister les livres d'une sélection (UC1)")
     print("  2) Détail d'un livre (UC2)")
     print("  3) Résultats du dernier tour (UC3)")
-    print("  4) Saisir les livres de la 2e sélection (UC4)")
-    print("  5) Saisir les livres de la 3e sélection (UC5)")
-    print("  6) Saisir les votes du dernier tour (UC6)")
+    print("  4) Saisir les livres de la 2e sélection (UC4) [président]")
+    print("  5) Saisir les livres de la 3e sélection (UC5) [président]")
+    print("  6) Saisir les votes du dernier tour (UC6) [président]")
     print("  q) Quitter")
     print()
-
 
 def print_book_details(details: BookDetails) -> None:
     """Display book details."""
@@ -97,7 +100,6 @@ def print_book_details(details: BookDetails) -> None:
 
     print()
 
-
 # /////////////////////////////// HANDLERS UC ///////////////////////////////
 
 def handle_uc1_list_selection(service: GoncourtService) -> None:
@@ -111,13 +113,13 @@ def handle_uc1_list_selection(service: GoncourtService) -> None:
 
     details_list = service.list_books_for_selection(round_number)
     if not details_list:
-        print(color("Aucune sélection trouvée.", FG_RED))
+        print()
+        print(color("En cours de délibération.", FG_RED))
         return
 
     print(color(f"\nLivres de la sélection n°{round_number} :", FG_GREEN))
     for details in details_list:
         print_book_details(details)
-
 
 def handle_uc2_book_details(service: GoncourtService) -> None:
     """UC2 : display one book with details."""
@@ -137,38 +139,46 @@ def handle_uc2_book_details(service: GoncourtService) -> None:
     print()
 
     # Ask user
-    raw = input("Id du livre à afficher : ").strip()
+    raw = input("Livre à afficher : ").strip()
     try:
         book_id = int(raw)
     except ValueError:
-        print(color("Id invalide.", FG_RED))
+        print(color("Saisie invalide.", FG_RED))
         return
 
     details = service.get_book_details(book_id)
     if details is None:
-        print(color("Aucun livre trouvé avec cet id.", FG_RED))
+        print(color("Aucun livre trouvé.", FG_RED))
         return
 
     print(color("\nDétail du livre :", FG_GREEN))
     print_book_details(details)
 
-
-
 def handle_uc3_final_results(service: GoncourtService) -> None:
     """UC3 : display final results."""
     results = service.list_final_results()
     if not results:
-        print(color("Aucun résultat saisi pour le dernier tour.", FG_RED))
+        print()
+        print(color("La délibération est en cours.", FG_RED))
         return
 
     print(color("\nRésultats du dernier tour :", FG_GREEN))
 
-    sorted_results = sorted(results, key=lambda t: t[1], reverse=True)
+    # Sort by nb_votes
+    sorted_results = sorted(results, key=lambda r: r.nb_votes, reverse=True)
 
     rank = 1
-    for details, votes in sorted_results:
-        b = details.book
-        line = f"{rank:2d}. [{b.id_book}] {b.title} - {votes} voix"
+
+    for r in sorted_results:
+        b = r.book_details.book
+        line = f"{rank:2d}. [{b.id_book}] {b.title} - {r.nb_votes} voix"
+
+        if r.is_winner:
+            if r.decided_by_president:
+                line += " (lauréat, départagé par le président)"
+            else:
+                line += " (lauréat)"
+
         if rank == 1:
             print(color(line, FG_YELLOW))
         else:
@@ -176,7 +186,345 @@ def handle_uc3_final_results(service: GoncourtService) -> None:
         rank += 1
     print()
 
+def handle_uc4_second_selection(service: GoncourtService) -> None:
+    """UC4 : set the 2nd selection with 8 books from round 1."""
+    # Load round 1 books
+    details_list = service.list_books_for_selection(1)
+    if not details_list:
+        print(
+            color(
+                "Impossible de définir la 2e sélection : la délibération de la 1ère sélection est encore en cours.",
+                FG_RED,
+            )
+        )
+        return
 
+    book_ids = _ask_book_ids(
+        details_list,
+        expected_count=8,
+        label="la 2ᵉ sélection (8 livres)",
+    )
+    if not book_ids:
+        return
+
+    print(
+        color(
+            "Attention : définir une nouvelle sélection va réinitialiser la 3ᵉ sélection et les résultats finaux.",
+            FG_YELLOW,
+        )
+    )
+    confirm = input(
+        color("Continuer ? (o/N) : ", FG_CYAN)
+    ).strip().lower()
+
+    if confirm != "o":
+        print(color("Opération annulée.", FG_RED))
+        return
+
+    service.set_second_selection(book_ids)
+    print()
+    print(color("Seconde sélection mise à jour avec succès.", FG_GREEN))
+
+def handle_uc5_third_selection(service: GoncourtService) -> None:
+    """UC5 : set the 3rd selection with 4 books from round 2."""
+    # Load round 2 books
+    details_list = service.list_books_for_selection(2)
+    if not details_list:
+        print(
+            color(
+                "Impossible de définir la 3e sélection : la 2e sélection n'a pas encore été définie.",
+                FG_RED,
+            )
+        )
+        return
+
+    book_ids = _ask_book_ids(
+        details_list,
+        expected_count=4,
+        label="la 3ᵉ sélection (4 finalistes)",
+    )
+    if not book_ids:
+        return
+
+    print(
+        color(
+            "Attention : définir une nouvelle sélection va réinitialiser les résultats finaux.",
+            FG_YELLOW,
+        )
+    )
+    confirm = input(
+        color("Continuer ? (o/N) : ", FG_CYAN)
+    ).strip().lower()
+    if confirm != "o":
+        print(color("Opération annulée.", FG_RED))
+        return
+
+    # Update third selection & reset final results inside the service
+    service.set_third_selection(book_ids)
+    print()
+    print(color("Finalistes mis à jour avec succès.", FG_GREEN))
+
+def handle_uc6_record_votes(service: GoncourtService) -> None:
+    """UC6 : record votes for last round."""
+    # Load finalists
+    finalists = service.list_books_for_selection(3)
+    if not finalists:
+        print(
+            color(
+                "Impossible de saisir les votes : la délibération de la 3e sélection est en encore cours.",
+                FG_RED,
+            )
+        )
+        return
+
+    print()
+    print(color("======Finalistes=======", FG_CYAN))
+    _print_books_for_choice(finalists)
+
+    finalist_ids: list[int] = [
+        d.book.id_book
+        for d in finalists
+        if d.book.id_book is not None
+    ]
+
+    if not finalist_ids:
+        # SHOULD NOT HAPPEN
+        print(color("Erreur : aucun finaliste trouvé.", FG_RED))
+        return
+
+
+    # ////////////////////////////// JURY VOTES //////////////////////////////
+
+    print(
+        color(
+            "Saisir les voix des membres du jury.",
+            FG_YELLOW,
+        )
+    )
+
+    member_votes: Dict[int, int] = {}
+    total_members: int = 0
+
+    for d in finalists:
+        b = d.book
+        if b.id_book is None:
+            continue
+
+        while True:
+            raw = input(
+                f"Voix des membres pour [{b.id_book}] {b.title} : "
+            ).strip()
+
+            if raw == "":
+                # Allow 0
+                nb = 0
+            else:
+                try:
+                    nb = int(raw)
+                    if nb < 0:
+                        print(
+                            color(
+                                "Nombre de voix négatif, merci de ressaisir.",
+                                FG_RED,
+                            )
+                        )
+                        continue
+                except ValueError:
+                    print(color("Valeur non entière, merci de ressaisir.", FG_RED))
+                    continue
+
+            member_votes[b.id_book] = nb
+            total_members += nb
+            break
+
+    print()
+    print(
+        color(
+            f"Total des voix des membres du jury : {total_members}",
+            FG_YELLOW,
+        )
+    )
+
+    if total_members != 9:
+        print(
+            color(
+                "Erreur : le total des voix des membres doit être égal à 9.",
+                FG_RED,
+            )
+        )
+        print(color("Saisie annulée, merci de recommencer.", FG_RED))
+        return
+
+    # /////////////////////////// PRESIDENT VOTE ///////////////////////////
+
+    president_vote: int
+
+    while True:
+        raw = input(
+            color(
+                "Veuillez saisir votre vote : ",
+                FG_CYAN,
+            )
+        ).strip()
+
+        try:
+            choice = int(raw)
+        except ValueError:
+            print(color("Saisie invalide, merci de saisir un entier.", FG_RED))
+            continue
+
+        if choice not in finalist_ids:
+            print(
+                color(
+                    "Cette saisie ne correspond pas à un finaliste, merci de réessayer.",
+                    FG_RED,
+                )
+            )
+            continue
+
+        president_vote = choice
+        break
+
+    # /////////////////////// TOTAL VOTES ///////////////////////////
+
+    votes_with_president: Dict[int, int] = {}
+    for bid in finalist_ids:
+        base_votes = member_votes.get(bid, 0)
+        if bid == president_vote:
+            base_votes += 1  # president vote
+        votes_with_president[bid] = base_votes
+
+    total_votes: int = sum(votes_with_president.values())
+
+    print()
+    print(
+        color(
+            f"Total des voix (membres + président) : {total_votes}",
+            FG_YELLOW,
+        )
+    )
+
+    if total_votes != 10:
+        # SHOULD NOT HAPPEN
+        print(
+            color(
+                "Erreur interne : le total des voix devrait être égal à 10.",
+                FG_RED,
+            )
+        )
+        print(color("Saisie annulée, merci de recommencer.", FG_RED))
+        return
+
+    # ////////////////////////////// CHECK TIE //////////////////////////////////////
+
+    max_votes: int = max(votes_with_president.values()) if votes_with_president else 0
+    top_ids: list[int] = [
+        bid for bid, nb in votes_with_president.items() if nb == max_votes
+    ]
+
+    tie_mode: bool = len(top_ids) > 1 and max_votes > 0
+
+    chosen_winner: int
+
+    if tie_mode:
+        print()
+        print(
+            color(
+                "Égalité après prise en compte de toutes les voix :",
+                FG_YELLOW,
+            )
+        )
+        for d in finalists:
+            b = d.book
+            if b.id_book in top_ids:
+                nb_virtual = votes_with_president.get(b.id_book, 0)
+                print(f"- [{b.id_book}] {b.title} ({nb_virtual} voix)")
+        print()
+
+        # If president had voted for one of the tied books, we use that as winner
+        if president_vote in top_ids:
+            chosen_winner = president_vote
+        else:
+            print(
+                color(
+                    "Le président doit départager les ex aequo.",
+                    FG_YELLOW,
+                )
+            )
+
+            tied_details = [
+                d
+                for d in finalists
+                if d.book.id_book is not None and d.book.id_book in top_ids
+            ]
+
+            chosen_list = _ask_book_ids(
+                tied_details,
+                expected_count=1,
+                label="le lauréat parmi les ex aequo",
+            )
+
+            if not chosen_list:
+                print(color("Aucun choix effectué, saisie annulée.", FG_RED))
+                return
+
+            chosen_winner = chosen_list[0]
+
+
+        final_votes: Dict[int, int] = dict(votes_with_president)
+    else:
+        # No tie
+        chosen_winner = max(votes_with_president, key=lambda bid: votes_with_president[bid])
+        final_votes = dict(votes_with_president)
+
+    # ///////////////////////// SUMMARY /////////////////////////////////
+
+    print()
+    print(color("Récapitulatif des résultats :", FG_CYAN))
+
+    for d in finalists:
+        b = d.book
+        if b.id_book is None:
+            continue
+
+        nb_final = final_votes.get(b.id_book, 0)
+        line = f"- [{b.id_book}] {b.title} : {nb_final} voix"
+
+        if tie_mode and b.id_book == chosen_winner:
+            line += " (lauréat, départagé par le président)"
+        elif not tie_mode and b.id_book == chosen_winner:
+            line += " (lauréat)"
+
+        print(line)
+
+    total_displayed: int = sum(final_votes.values())
+    print()
+    print(
+        color(
+            f"Total des voix : {total_displayed}",
+            FG_YELLOW,
+        )
+    )
+
+    print()
+    confirm = input(
+        color("Confirmer l'enregistrement de ces résultats ? (o/N) : ", FG_CYAN)
+    ).strip().lower()
+
+    if confirm != "o":
+        print(color("Saisie des votes annulée.", FG_RED))
+        return
+
+    service.record_final_votes(
+        final_votes,
+        winner_book_id=chosen_winner,
+        decided_by_president=tie_mode,
+    )
+    print()
+    print(color("Votes du dernier tour enregistrés.", FG_GREEN))
+    print()
+
+# //////////////////////// HELPERS ///////////////////////////////////
 
 def _ask_book_ids(
     details_list: list[BookDetails],
@@ -199,10 +547,10 @@ def _ask_book_ids(
 
     while True:
         print(
-            f"Saisir {color(str(expected_count), FG_YELLOW)} id(s) de livre "
+            f"Saisir {color(str(expected_count), FG_YELLOW)} livre(s) "
             f"pour {label}, séparés par des virgules."
         )
-        raw = input("Ids : ").strip()
+        raw = input("Choix : ").strip()
 
         if not raw:
             print(color("Aucune saisie, annulation.", FG_RED))
@@ -215,7 +563,7 @@ def _ask_book_ids(
             try:
                 ids.append(int(p))
             except ValueError:
-                print(color(f"Id ignoré (non entier) : {p}", FG_RED))
+                print(color(f"Saisie ignorée (non entier) : {p}", FG_RED))
 
         # Remove duplicates while keeping order
         unique_ids: list[int] = []
@@ -226,7 +574,7 @@ def _ask_book_ids(
         if len(unique_ids) != expected_count:
             print(
                 color(
-                    f"Il faut choisir exactement {expected_count} livre(s), "
+                    f"Il faut choisir {expected_count} livre(s), "
                     f"vous en avez choisi {len(unique_ids)}.",
                     FG_RED,
                 )
@@ -237,7 +585,7 @@ def _ask_book_ids(
         if invalid:
             print(
                 color(
-                    f"Id(s) non valide(s) (hors liste) : {invalid}",
+                    f"Saisie(s) non valide(s) (hors liste) : {invalid}",
                     FG_RED,
                 )
             )
@@ -245,11 +593,10 @@ def _ask_book_ids(
 
         return unique_ids
 
-
 def _print_books_for_choice(details_list: list[BookDetails]) -> None:
     """List of books for CLI."""
     print()
-    print(color("Liste des livres disponibles :", FG_CYAN))
+    print(color("Liste des livres :", FG_CYAN))
     print("-" * 50)
     for d in details_list:
         book = d.book
@@ -266,145 +613,7 @@ def _print_books_for_choice(details_list: list[BookDetails]) -> None:
     print("-" * 50)
     print()
 
-
-def handle_uc4_second_selection(service: GoncourtService) -> None:
-    """UC4 : set the 2nd selection with exactly 8 books from round 1."""
-    # Load round 1 books
-    details_list = service.list_books_for_selection(1)
-    if not details_list:
-        print(
-            color(
-                "Impossible de définir la 2e sélection : "
-                "la 1ère sélection est vide.",
-                FG_RED,
-            )
-        )
-        return
-
-    book_ids = _ask_book_ids(
-        details_list,
-        expected_count=8,
-        label="la 2ᵉ sélection (8 livres)",
-    )
-    if not book_ids:
-        return
-
-    service.set_second_selection(book_ids)
-    print(color("2ᵉ sélection mise à jour avec succès.", FG_GREEN))
-
-
-def handle_uc5_third_selection(service: GoncourtService) -> None:
-    """UC5 : set the 3rd selection with exactly 4 books from round 2."""
-    # Load round 2 books
-    details_list = service.list_books_for_selection(2)
-    if not details_list:
-        print(
-            color(
-                "Impossible de définir la 3e sélection : "
-                "la 2e sélection est vide.",
-                FG_RED,
-            )
-        )
-        return
-
-    book_ids = _ask_book_ids(
-        details_list,
-        expected_count=4,
-        label="la 3ᵉ sélection (4 finalistes)",
-    )
-    if not book_ids:
-        return
-
-    service.set_third_selection(book_ids)
-    print(color("3ᵉ sélection (finalistes) mise à jour avec succès.", FG_GREEN))
-
-
-def handle_uc6_record_votes(service: GoncourtService) -> None:
-    """UC6 : record votes for last round, book by book."""
-    # Load finalists (round 3)
-    finalists = service.list_books_for_selection(3)
-    if not finalists:
-        print(
-            color(
-                "Impossible de saisir les votes : "
-                "la 3e sélection (finalistes) est vide.",
-                FG_RED,
-            )
-        )
-        return
-
-    # Load current results to show existing votes if any
-    current_results = service.list_final_results()
-    current_map: Dict[int, int] = {
-        book.book.id_book: nb
-        for book, nb in current_results
-        if book.book.id_book is not None
-    }
-
-    print()
-    print(color("Saisie des votes du dernier tour : ", FG_CYAN))
-    print("-" * 50)
-
-    new_results: Dict[int, int] = {}
-
-    for d in finalists:
-        book = d.book
-        if book.id_book is None:
-            continue
-
-        existing = current_map.get(book.id_book, 0)
-        prompt = (
-            f"Voix pour [{book.id_book}] {book.title} "
-            f"(actuel : {existing}, Enter pour garder) : "
-        )
-        raw = input(prompt).strip()
-
-        if raw == "":
-            # Keep existing value (can be 0)
-            new_results[book.id_book] = existing
-            continue
-
-        try:
-            nb_votes = int(raw)
-            if nb_votes < 0:
-                print(color("Nombre de voix négatif ignoré, on garde 0.", FG_RED))
-                nb_votes = 0
-        except ValueError:
-            print(
-                color(
-                    f"Valeur non entière pour ce livre, on garde la valeur actuelle ({existing}).",
-                    FG_RED,
-                )
-            )
-            nb_votes = existing
-
-        new_results[book.id_book] = nb_votes
-
-    # Optional: quick check of total votes (10 membres de jury)
-    total_votes = sum(new_results.values())
-    print()
-    print(
-        color(
-            f"Total des voix saisies : {total_votes}",
-            FG_YELLOW,
-        )
-    )
-
-    # Confirm and save
-    confirm = input(
-        color("Confirmer l'enregistrement de ces votes ? (o/N) : ", FG_CYAN)
-    ).strip().lower()
-
-    if confirm != "o":
-        print(color("Saisie des votes annulée.", FG_RED))
-        return
-
-    service.record_final_votes(new_results)
-    print(color("Votes du dernier tour enregistrés.", FG_GREEN))
-
-
-# //////////////////////////////////////////////////////////////
-
+# ////////////////////////////////////////////////////////////////////
 
 def build_service() -> GoncourtService:
     """Build Goncourt_service & DAO"""
@@ -425,6 +634,33 @@ def build_service() -> GoncourtService:
         final_result_dao=final_result_dao,
     )
 
+def authenticate_user() -> JuryMember:
+    """Ask for jury login and load the corresponding member from DB.
+    Loops until a valid login is provided.
+    """
+    dao = JuryMemberDao()
+
+    while True:
+        login = input(color("Identifiant membre du jury : ", FG_MAGENTA)).strip()
+        if not login:
+            print(color("Login obligatoire, merci de réessayer.", FG_RED))
+            continue
+
+        member = dao.read_by_login(login)
+        if member is None:
+            print(color("Membre du jury inconnu, merci de réessayer.", FG_RED))
+            continue
+
+        role = "Président du jury" if member.is_president else "Membre du jury"
+        print()
+        print()
+        print(
+            color(
+                f"Connecté en tant que {member.first_name} {member.last_name} ({role})",
+                FG_GREEN,
+            )
+        )
+        return member
 
 # /////////////////////////////// MAIN ///////////////////////////////
 
@@ -432,6 +668,8 @@ def main() -> None:
 
     setup_logging()
     service = build_service()
+    global current_user
+    current_user = authenticate_user()
 
     print_header()
 
@@ -446,10 +684,19 @@ def main() -> None:
         elif choice == "3":
             handle_uc3_final_results(service)
         elif choice == "4":
+            if not (current_user and current_user.is_president):
+                print(color("Accès réservé au président du jury.", FG_RED))
+                continue
             handle_uc4_second_selection(service)
         elif choice == "5":
+            if not (current_user and current_user.is_president):
+                print(color("Accès réservé au président du jury.", FG_RED))
+                continue
             handle_uc5_third_selection(service)
         elif choice == "6":
+            if not (current_user and current_user.is_president):
+                print(color("Accès réservé au président du jury.", FG_RED))
+                continue
             handle_uc6_record_votes(service)
         elif choice == "q":
             print(color("Au revoir", FG_CYAN))

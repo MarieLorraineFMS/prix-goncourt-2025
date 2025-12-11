@@ -25,5 +25,6 @@ class Book:
     author_id: int | None = None
     publisher_id: int | None = None
 
+    # TODO : improve __str__
     def __str__(self) -> str:
         return f"{self.title} {self.summary}"

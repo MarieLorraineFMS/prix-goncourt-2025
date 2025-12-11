@@ -17,8 +17,11 @@ class FinalResult:
     # FK to book.id_book
     book_id: int
     nb_votes: int
+    is_winner:bool
+    decided_by_president:bool
 
     book: Optional[Book] = None
 
+    # TODO : improve __str__
     def __str__(self) -> str:
         return f"{self.book_id} {self.nb_votes}"

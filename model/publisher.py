@@ -14,5 +14,6 @@ class Publisher:
     id_publisher: int | None = None
     name: str = ""
 
+    # TODO : improve __str__
     def __str__(self) -> str:
         return f"{self.name}"

@@ -4,15 +4,16 @@
 FinalResult DAO implementation.
 """
 
-import logging
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional, TypedDict, cast
 
 from dao.base_dao import BaseDao
+
 from model.book import Book
 from model.final_result import FinalResult
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +21,8 @@ class FinalResultRecord(TypedDict):
     """Typed row from JOIN final_result / book."""
     id_book: int
     nb_votes: int
+    is_winner:int
+    decided_by_president:int
     title: str
     summary: str
     publication_date: date | None
@@ -62,6 +65,8 @@ class FinalResultDao(BaseDao[FinalResult]):
                 SELECT
                     fr.id_book,
                     fr.nb_votes,
+                    fr.is_winner,
+                    fr.decided_by_president,
                     b.id_book,
                     b.title,
                     b.summary,
@@ -96,6 +101,8 @@ class FinalResultDao(BaseDao[FinalResult]):
             result = FinalResult(
                 book_id=row["id_book"],
                 nb_votes=row["nb_votes"],
+                is_winner=bool(row["is_winner"]),
+                decided_by_president=bool(row["decided_by_president"]),
                 book=book,
             )
             results.append(result)
@@ -105,10 +112,8 @@ class FinalResultDao(BaseDao[FinalResult]):
 
     # /////////////////////////////// UC6 : RECORD RESULTS ///////////////////////////////
 
-    def replace_results(self, results: dict[int, int]) -> None:
+    def replace_results(self, results: dict[int, int],winner_book_id: int, decided_by_president: bool) -> None:
         """Replace all final results.
-
-        :param results: mapping book_id -> nb_votes
         """
         logger.warning("Replacing all final results in DB")
 
@@ -116,11 +121,34 @@ class FinalResultDao(BaseDao[FinalResult]):
             cursor.execute("TRUNCATE TABLE final_result")
 
             sql = """
-                INSERT INTO final_result (id_book, nb_votes)
-                VALUES (%s, %s)
+                INSERT INTO final_result (id_book, nb_votes, is_winner, decided_by_president)
+                VALUES (%s, %s, %s, %s)
             """
-            data = [(book_id, nb_votes) for book_id, nb_votes in results.items()]
-            cursor.executemany(sql, data)
+            for book_id, nb_votes in results.items():
+                is_winner = 1 if book_id == winner_book_id else 0
+                decided_flag = 1 if (is_winner and decided_by_president) else 0
+
+                cursor.execute(
+                    sql,
+                    (
+                        book_id,
+                        nb_votes,
+                        is_winner,
+                        decided_flag,
+                    ),
+                )
 
         BaseDao.connection.commit()
         logger.warning("Final results successfully updated")
+
+    def clear_all(self) -> None:
+        """Delete all rows from final_result table.
+
+        Used when selections change and previous results are no longer consistent.
+        """
+        logger.info("Clearing all final results from DB")
+        with BaseDao.connection.cursor() as cursor:
+            sql = "DELETE FROM final_result"
+            cursor.execute(sql)
+        BaseDao.connection.commit()
+

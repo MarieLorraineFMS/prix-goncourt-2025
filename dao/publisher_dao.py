@@ -5,12 +5,13 @@ Publisher DAO implementation.
 """
 
 from dataclasses import dataclass
-import logging
 from typing import Optional, TypedDict, cast
 
 from dao.base_dao import BaseDao
+
 from model.publisher import Publisher
 
+import logging
 logger = logging.getLogger(__name__)
 
 class PublisherRecord(TypedDict):

@@ -6,12 +6,13 @@ Selection DAO implementation.
 
 from dataclasses import dataclass
 from datetime import date
-import logging
 from typing import Optional, TypedDict, cast
 
 from dao.base_dao import BaseDao
+
 from model.selection import Selection
 
+import logging
 logger = logging.getLogger(__name__)
 
 class SelectionRecord(TypedDict):
@@ -101,9 +102,9 @@ class SelectionDao(BaseDao[Selection]):
                 """,
                 (selection_id,),
             )
-            row = cursor.fetchone()
+            db_row = cursor.fetchone()
 
-            if row is None:
+            if db_row is None:
                 logger.error(
                     "No selection found with id=%s, aborting set_books()",
                     selection_id,
@@ -131,12 +132,12 @@ class SelectionDao(BaseDao[Selection]):
         BaseDao.connection.commit()
 
         # Rebuild Selection object from row
-        record = cast(SelectionRecord, row)
+        row = cast(SelectionRecord, db_row)
         selection = Selection(
-            id_selection=record["id_selection"],
-            year=record["year"],
-            round_number=record["round_number"],
-            selection_date=record["selection_date"],
+            id_selection=row["id_selection"],
+            year=row["year"],
+            round_number=row["round_number"],
+            selection_date=row["selection_date"],
         )
         logger.error("Books updated for selection id=%s", selection_id)
         return selection

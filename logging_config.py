@@ -5,11 +5,11 @@ import sys
 RESET = "\033[0m"
 
 COLORS = {
-    "DEBUG": "\033[37m",    # gray
-    "INFO": "\033[36m",     # cyan
-    "WARNING": "\033[33m",  # yellow
-    "ERROR": "\033[31m",    # red
-    "CRITICAL": "\033[41m", # red background
+    "DEBUG": "\033[37m",    # gray FG
+    "INFO": "\033[36m",     # cyan FG
+    "WARNING": "\033[33m",  # yellow FG
+    "ERROR": "\033[31m",    # red FG
+    "CRITICAL": "\033[41m", # red BG
 }
 
 

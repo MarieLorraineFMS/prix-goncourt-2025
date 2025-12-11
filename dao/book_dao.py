@@ -8,11 +8,12 @@ from dataclasses import dataclass
 from typing import Optional, TypedDict, cast
 from datetime import date
 
-import logging
 
 from dao.base_dao import BaseDao
+
 from model.book import Book
 
+import logging
 logger = logging.getLogger(__name__)
 
 class BookRecord(TypedDict):

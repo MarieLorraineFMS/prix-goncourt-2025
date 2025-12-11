@@ -137,3 +137,10 @@ CREATE TABLE
         PRIMARY KEY (id_book),
         CONSTRAINT fk_final_result_book FOREIGN KEY (id_book) REFERENCES book (id_book) ON UPDATE CASCADE ON DELETE CASCADE
     ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;
+
+-- /////////////////////////////////////////////////
+-- Added president vote logic for final result
+-- /////////////////////////////////////////////////
+ALTER TABLE final_result
+ADD COLUMN is_winner TINYINT (1) NOT NULL DEFAULT 0,
+ADD COLUMN decided_by_president TINYINT (1) NOT NULL DEFAULT 0;

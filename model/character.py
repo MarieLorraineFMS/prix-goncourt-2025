@@ -17,5 +17,6 @@ class Character:
     # Link to book
     book_id: int | None = None
 
+    # TODO : improve __str__
     def __str__(self) -> str:
         return f"{self.name}"

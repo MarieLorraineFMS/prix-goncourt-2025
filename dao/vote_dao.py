@@ -10,7 +10,7 @@ from typing import Optional
 from dao.base_dao import BaseDao
 from model.vote import Vote
 
-
+#TODO Implement votes mechanic
 @dataclass
 class VoteDao(BaseDao[Vote]):
     """DAO for Vote entities."""

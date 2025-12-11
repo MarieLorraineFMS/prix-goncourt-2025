@@ -5,9 +5,6 @@ Goncourt service (store) for Goncourt use cases.
 """
 
 from dataclasses import dataclass
-
-import logging
-
 from typing import Optional
 
 from dao.book_dao import BookDao
@@ -22,6 +19,7 @@ from model.author import Author
 from model.publisher import Publisher
 from model.character import Character
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +31,14 @@ class BookDetails:
     author: Optional[Author]
     publisher: Optional[Publisher]
     characters: list[Character]
+
+@dataclass
+class FinalResultDetails:
+    book_details: BookDetails
+    nb_votes: int
+    is_winner: bool
+    decided_by_president: bool
+
 
 
 @dataclass
@@ -108,37 +114,78 @@ class GoncourtService:
             characters=characters,
         )
 
-    def list_final_results(self) -> list[tuple[BookDetails, int]]:
+    def list_final_results(self) -> list[FinalResultDetails]:
         """UC3 : list final results with books & votes."""
         raw_results = self.final_result_dao.read_all()
-        results: list[tuple[BookDetails, int]] = []
+        results: list[FinalResultDetails] = []
 
         for fr in raw_results:
             details = self.get_book_details(fr.book_id)
             if details is None:
                 continue
-            results.append((details, fr.nb_votes))
+            results.append(
+                FinalResultDetails(
+                    book_details=details,
+                    nb_votes=fr.nb_votes,
+                    is_winner=fr.is_winner,
+                    decided_by_president=fr.decided_by_president,
+                )
+            )
 
         return results
 
     def set_second_selection(self, book_ids: list[int]) -> None:
-        """UC4 : define second selection for 2025."""
+        """Set books of 2nd selection & reset later steps.
+
+        Changing 2nd selection invalidates :
+        - 3rd selection (finalists)
+        - final results (last round votes)
+        """
         selection = self.selection_dao.read_by_year_and_round(2025, 2)
         if selection is None:
-            # In a real world raise an exception
-            return
+            raise ValueError("2nd selection not found for year 2025")
+
+        # Update 2nd selection books
         if selection.id_selection is not None:
             self.selection_dao.set_books(selection.id_selection, book_ids)
+
+        # Reset final results
+        self.final_result_dao.clear_all()
+
+        # Reset 3rd selection
+        third_selection = self.selection_dao.read_by_year_and_round(2025, 3)
+
+        if third_selection is None:
+            return
+
+        if third_selection.id_selection is not None:
+            # Passing empty list will remove all links
+            self.selection_dao.set_books(third_selection.id_selection, [])
+
+
 
     def set_third_selection(self, book_ids: list[int]) -> None:
-        """UC5: define third selection for 2025."""
-        selection = self.selection_dao.read_by_year_and_round(2025, 3)
-        if selection is None:
-            return
+        """Set books of 3rd selection (finalists) & reset final results.
 
+        Changing finalists invalidates existing final results.
+        """
+        selection = self.selection_dao.read_by_year_and_round(2025, 3)
+
+        if selection is None:
+            raise ValueError("3rd selection not found for year 2025")
+
+        # Update 3rd selection books
         if selection.id_selection is not None:
             self.selection_dao.set_books(selection.id_selection, book_ids)
 
-    def record_final_votes(self, results: dict[int, int]) -> None:
-        """UC6: record final votes."""
-        self.final_result_dao.replace_results(results)
+        # Reset final results
+        self.final_result_dao.clear_all()
+
+    def record_final_votes(self, results: dict[int, int], winner_book_id: int,decided_by_president: bool) -> None:
+        """UC6: record final votes.
+        """
+        self.final_result_dao.replace_results(
+            results,
+            winner_book_id=winner_book_id,
+            decided_by_president=decided_by_president,
+        )
