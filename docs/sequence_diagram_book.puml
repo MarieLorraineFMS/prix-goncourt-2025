@@ -17,11 +17,14 @@ DB --> Goncourt_service : Book + Author + Publisher
 Goncourt_service -> DB : SELECT * FROM book_character\nWHERE book_id = 11
 DB --> Goncourt_service : liste de BookCharacter
 
-'Récupérer le résultat final éventuel
-Goncourt_service -> DB : SELECT * FROM final_result\nWHERE id_book = 11
-DB --> Goncourt_service : FinalResult (0 ou 1 ligne)
-
-Goncourt_service --> UI : Book + Author + Publisher + Characters + FinalResult
+Goncourt_service --> UI : Book + Author + Publisher + Characters
 UI --> User : affiche la fiche détaillée du livre
+
+note right of Goncourt_service
+  Implémentation :
+  - SelectionDao.read_by_year_and_round(...)
+  - BookDao.read_by_selection(...)
+  - puis pour chaque livre, appels aux DAO Author/Publisher/Character
+end note
 
 @enduml

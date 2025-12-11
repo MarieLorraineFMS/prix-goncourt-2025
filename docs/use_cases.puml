@@ -3,9 +3,8 @@ title Prix Goncourt 2025 - Use Case Diagram
 
 left to right direction
 
-actor "Utilisateur" as User
+actor "Membre du jury" as Member
 actor "Président du jury" as President
-actor "Membre du jury\n" as Member
 
 rectangle "Application Prix Goncourt 2025" {
 
@@ -17,27 +16,40 @@ rectangle "Application Prix Goncourt 2025" {
   usecase "Indiquer les livres\nde la 3e sélection" as UC5
   usecase "Saisir les votes\npour le dernier tour" as UC6
 
-  usecase "S'authentifier\n" as UC7
-  usecase "Voter pour la 2e sélection\n" as UC8
-  usecase "Voter pour la 3e sélection\n" as UC9
-  usecase "Voter pour le lauréat\n" as UC10
+  usecase "S'authentifier" as UC7
+
+  usecase "TODO : Voter pour la 2e sélection" as UC8
+  usecase "TODO : Voter pour la 3e sélection" as UC9
+  usecase "TODO : Voter pour le lauréat" as UC10
 }
 
-User --> UC1
-User --> UC2
-User --> UC3
+' President inherit jury member
+President --|> Member
 
+' Member actions
+Member --> UC1
+Member --> UC2
+Member --> UC3
+
+' President-specific actions
 President --> UC4
 President --> UC5
 President --> UC6
-President --> UC3
 
-Member --> UC7
+' Future vote features for members
 Member --> UC8
 Member --> UC9
 Member --> UC10
 
-UC1 --> UC2 : <<include>>
-UC6 --> UC3 : <<include>>
+' Auth is a mandatory step before all actions
+UC1  --> UC7 : <<include>>
+UC2  --> UC7 : <<include>>
+UC3  --> UC7 : <<include>>
+UC4  --> UC7 : <<include>>
+UC5  --> UC7 : <<include>>
+UC6  --> UC7 : <<include>>
+UC8  --> UC7 : <<include>>
+UC9  --> UC7 : <<include>>
+UC10 --> UC7 : <<include>>
 
 @enduml

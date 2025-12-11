@@ -53,7 +53,10 @@ entity "FINAL_RESULT" as FINAL_RESULT {
   * id_book : int
   --
   nb_votes : int
+  is_winner : bool
+  decided_by_president : bool
 }
+
 
 entity "JURY_MEMBER" as JURY_MEMBER {
   * id_member : int
@@ -61,7 +64,7 @@ entity "JURY_MEMBER" as JURY_MEMBER {
   first_name : string
   last_name : string
   is_president : bool
-  login : string?
+  login : string
   password_hash : string
 }
 

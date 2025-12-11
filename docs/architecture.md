@@ -15,6 +15,7 @@ dao/
     base_dao.py
     book_dao.py
     character_dao.py
+    final_result_dao.py
     jury_member_dao.py
     publisher_dao.py
     selection_dao.py
@@ -23,6 +24,7 @@ model/
     author.py
     book.py
     character.py
+    final_result.py
     jury_member.py
     publisher.py
     selection.py
@@ -41,9 +43,9 @@ sql/
     seed.sql
 tests/
     test_sql.sql
+todo/
+    todo_class_diagram.puml
 ```
-
-
 
 
 ### Couche `model/`

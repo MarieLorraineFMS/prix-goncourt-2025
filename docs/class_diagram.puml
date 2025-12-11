@@ -48,6 +48,8 @@ class Selection {
 class FinalResult {
   +id : int
   +nbVotes : int
+  +is_winner:boolean
+  +decided_by_president:boolean
 }
 
 class BookCharacter {
