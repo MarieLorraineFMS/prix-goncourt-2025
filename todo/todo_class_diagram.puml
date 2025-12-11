@@ -1,0 +1,102 @@
+@startuml Class Diagram Futur
+title Prix Goncourt 2025 - Diagramme de classes (évolution)
+
+' ////////////////////////
+'  ABSTRACTION PERSON
+' ////////////////////////
+
+abstract class Person {
+  +id : int
+  +firstName : string
+  +lastName : string
+  --
+  +getFullName() : string
+}
+
+class Author {
+  +id : int
+  +biography : string
+}
+
+class JuryMember {
+  +id : int
+  +isPresident : boolean
+  +login : string
+  +passwordHash : string
+}
+
+Person <|-- Author
+Person <|-- JuryMember
+
+' ////////////////////////
+'  AUTRES ENTITÉS
+' ////////////////////////
+
+class Publisher {
+  +id : int
+  +name : string
+}
+
+class Book {
+  +id : int
+  +title : string
+  +summary : string
+  +publicationDate : date
+  +pageCount : int
+  +isbn : string
+  +price : decimal
+  --
+  +getDisplayTitle() : string
+}
+
+class BookCharacter {
+  +id : int
+  +name : string
+}
+
+class Selection {
+  +id : int
+  +year : int
+  +roundNumber : int  ' 1, 2, 3
+  +selectionDate : date
+}
+
+class FinalResult {
+  +idBook : int
+  +nbVotes : int
+  +isWinner : boolean
+  +decidedByPresident : boolean
+}
+
+class Vote {
+  +id : int
+  +roundNumber : int     ' 2, 3 ou "final"
+  +createdAt : datetime
+  +isPresidentVote : boolean
+}
+
+' ////////////////////////
+'  ASSOCIATIONS
+' ////////////////////////
+
+' Author <-> Book
+Author "1" o-- "0..*" Book : writes
+
+' Publisher <-> Book
+Publisher "1" o-- "0..*" Book : publishes
+
+' Book <-> Characters
+Book "1" o-- "0..*" BookCharacter : contains
+
+' Selection <-> Book (N-N via junction table)
+Selection "0..*" o-- "0..*" Book : selected\n(SelectionBook)
+
+' Votes individuels
+JuryMember "1" o-- "0..*" Vote : casts
+Book "1" o-- "0..*" Vote : receives
+Selection "0..1" o-- "0..*" Vote : context\n(roundNumber)
+
+' Final result, last round synthesis
+Book "0..1" o-- "0..1" FinalResult : finalResult
+
+@enduml
